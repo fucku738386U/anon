@@ -68,7 +68,7 @@ class AnonLauncher:
             print(fx.RESET)
 
             if choice == "":
-                print(fx.fire("⚡ ENTER pressed → INSTANT MODE"))
+                print(fx.fire_gradient("⚡ ENTER pressed → INSTANT MODE"))
                 scraper = AnonScraper(self.db, fx)
                 scraper.run_all("fast")
             elif choice in self.MODES:
@@ -83,7 +83,7 @@ class AnonLauncher:
                     scraper = AnonScraper(self.db, fx)
                     scraper.run_all(mode)
             elif choice == "0":
-                fx.glitch("SYSTEM SHUTDOWN...", 2)
+                fx.glitch_text("SYSTEM SHUTDOWN...", 2)
                 print(f"{fx.RED}💀 ANON offline. Sab chhod, system tod. 🕳️{fx.RESET}")
                 break
             else:
@@ -115,7 +115,7 @@ class AnonLauncher:
         print()
 
     def _auto(self):
-        print(f"\n{fx.neon('🤖 AUTO DAEMON — 24/7')}\n")
+        print(f"\n{fx.neon_gradient('🤖 AUTO DAEMON — 24/7')}\n")
         print(f"{fx.YELLOW}Ctrl+C to stop{fx.RESET}\n")
         while self.running:
             scraper = AnonScraper(self.db, fx)
