@@ -152,4 +152,14 @@ class AnonFX:
 {AnonFX.BG_BLACK}{AnonFX.CYAN}╚══════════════════════════════════════╝{AnonFX.RESET}
 """
 
+
+    # Aliases for backward compatibility
+    typing_effect = typefx
+    fire_gradient = fire
+    ice_gradient = ice
+    blood_gradient = blood
+    neon_gradient = neon
+    green_gradient = green
+    gold_gradient = gold
+    glitch_text = glitch
 fx = AnonFX()
