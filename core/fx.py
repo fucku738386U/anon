@@ -51,9 +51,13 @@ class AnonFX:
     def green(t): return AnonFX.gradient(t, (0,255,0), (50,255,150))
     @staticmethod
     def gold(t): return AnonFX.gradient(t, (255,215,0), (255,140,0))
+    @staticmethod
+    def purple(t): return AnonFX.gradient(t, (128,0,128), (255,0,255))
+    @staticmethod
+    def ocean(t): return AnonFX.gradient(t, (0,105,148), (0,255,255))
 
     @staticmethod
-    def box(text, color=CYAN, w=70, style="double"):
+    def box(text, color=CYAN, w=75, style="double"):
         if style == "double":
             return f"{color}╔{'═'*(w-2)}╗\n║{text.center(w-2)}║\n╚{'═'*(w-2)}╝{AnonFX.RESET}"
         elif style == "heavy":
@@ -63,6 +67,7 @@ class AnonFX:
 
     @staticmethod
     def progress(c, t, w=40, color=GREEN):
+        if t == 0: t = 1
         p = c/t
         f = int(w*p)
         b = "█"*f + "░"*(w-f)
@@ -70,7 +75,7 @@ class AnonFX:
 
     @staticmethod
     def spinner(d=1, msg="Loading"):
-        frames = ["◐","◓","◑","◒","🌀","💀","🔥","🚀"]
+        frames = ["◐","◓","◑","◒","🌀","💀","🔥","🚀","⚡","💳"]
         e = time.time() + d
         i = 0
         while time.time() < e:
@@ -78,10 +83,10 @@ class AnonFX:
             sys.stdout.flush()
             time.sleep(0.08)
             i += 1
-        sys.stdout.write("\r" + " "*50 + "\r")
+        sys.stdout.write("\r" + " "*60 + "\r")
 
     @staticmethod
-    def typefx(text, delay=0.015, color=WHITE):
+    def typing_effect(text, delay=0.015, color=WHITE):
         for c in text:
             sys.stdout.write(f"{color}{c}{AnonFX.RESET}")
             sys.stdout.flush()
@@ -102,7 +107,7 @@ class AnonFX:
 
     @staticmethod
     def matrix(d=1.5, w=80):
-        chars = "0123456789ABCDEF@#$%&*01anon"
+        chars = "0123456789ABCDEF@#$%&*01anon🌀💀🔥"
         e = time.time() + d
         while time.time() < e:
             line = ""
@@ -138,28 +143,22 @@ class AnonFX:
     @staticmethod
     def status(site, status, color=GREEN):
         ts = time.strftime("%H:%M:%S")
-        icons = {"running":"▶️","success":"✅","error":"❌","warning":"⚠️","found":"💳","scanning":"🔍","done":"🏁"}
-        return f"{AnonFX.DIM}[{ts}]{AnonFX.RESET} {color}{icons.get(status.lower(),'⏳')} {site:<30} {status.upper()}{AnonFX.RESET}"
+        icons = {"running":"▶️","success":"✅","error":"❌","warning":"⚠️","found":"💳","scanning":"🔍","done":"🏁","dorking":"🔎","scraping":"⚡","testing":"🧪"}
+        return f"{AnonFX.DIM}[{ts}]{AnonFX.RESET} {color}{icons.get(status.lower(),'⏳')} {site:<35} {status.upper()}{AnonFX.RESET}"
 
     @staticmethod
-    def cccard(num, exp, cvv, name="", bank=""):
+    def cccard(num, exp, cvv, name="", bank="", country=""):
         return f"""
-{AnonFX.BG_BLACK}{AnonFX.CYAN}╔══════════════════════════════════════╗{AnonFX.RESET}
-{AnonFX.BG_BLACK}{AnonFX.CYAN}║  {AnonFX.YELLOW}💳 {AnonFX.WHITE}{num:<32}{AnonFX.CYAN}║{AnonFX.RESET}
-{AnonFX.BG_BLACK}{AnonFX.CYAN}║  {AnonFX.DIM}EXP: {AnonFX.WHITE}{exp:<8}  CVV: {AnonFX.WHITE}{cvv:<8}{AnonFX.CYAN}     ║{AnonFX.RESET}
-{AnonFX.BG_BLACK}{AnonFX.CYAN}║  {AnonFX.DIM}NAME: {AnonFX.WHITE}{name:<29}{AnonFX.CYAN}║{AnonFX.RESET}
-{AnonFX.BG_BLACK}{AnonFX.CYAN}║  {AnonFX.DIM}BANK: {AnonFX.ORANGE}{bank:<28}{AnonFX.CYAN}║{AnonFX.RESET}
-{AnonFX.BG_BLACK}{AnonFX.CYAN}╚══════════════════════════════════════╝{AnonFX.RESET}
+{AnonFX.BG_BLACK}{AnonFX.CYAN}╔══════════════════════════════════════════╗{AnonFX.RESET}
+{AnonFX.BG_BLACK}{AnonFX.CYAN}║  {AnonFX.YELLOW}💳 {AnonFX.WHITE}{num:<36}{AnonFX.CYAN}║{AnonFX.RESET}
+{AnonFX.BG_BLACK}{AnonFX.CYAN}║  {AnonFX.DIM}EXP: {AnonFX.WHITE}{exp:<10}  CVV: {AnonFX.WHITE}{cvv:<8}{AnonFX.CYAN}         ║{AnonFX.RESET}
+{AnonFX.BG_BLACK}{AnonFX.CYAN}║  {AnonFX.DIM}NAME: {AnonFX.WHITE}{name:<33}{AnonFX.CYAN}║{AnonFX.RESET}
+{AnonFX.BG_BLACK}{AnonFX.CYAN}║  {AnonFX.DIM}BANK: {AnonFX.ORANGE}{bank:<20} {AnonFX.DIM}COUNTRY: {AnonFX.WHITE}{country:<6}{AnonFX.CYAN}║{AnonFX.RESET}
+{AnonFX.BG_BLACK}{AnonFX.CYAN}╚══════════════════════════════════════════╝{AnonFX.RESET}
 """
 
+    @staticmethod
+    def separator(color=CYAN):
+        return f"{color}{'═'*75}{AnonFX.RESET}"
 
-    # Aliases for backward compatibility
-    typing_effect = typefx
-    fire_gradient = fire
-    ice_gradient = ice
-    blood_gradient = blood
-    neon_gradient = neon
-    green_gradient = green
-    gold_gradient = gold
-    glitch_text = glitch
 fx = AnonFX()
