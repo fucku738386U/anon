@@ -40,15 +40,15 @@ class AnonFX:
         return r + AnonFX.RESET
 
     @staticmethod
-    def fire(t): return AnonFX.gradient(t, (255,50,0), (255,200,0))
+    def fire_gradient(t): return AnonFX.gradient(t, (255,50,0), (255,200,0))
     @staticmethod
-    def ice(t): return AnonFX.gradient(t, (0,255,255), (255,255,255))
+    def ice_gradient(t): return AnonFX.gradient(t, (0,255,255), (255,255,255))
     @staticmethod
-    def blood(t): return AnonFX.gradient(t, (139,0,0), (255,0,0))
+    def blood_gradient(t): return AnonFX.gradient(t, (139,0,0), (255,0,0))
     @staticmethod
-    def neon(t): return AnonFX.gradient(t, (255,0,255), (0,255,255))
+    def neon_gradient(t): return AnonFX.gradient(t, (255,0,255), (0,255,255))
     @staticmethod
-    def green(t): return AnonFX.gradient(t, (0,255,0), (50,255,150))
+    def green_gradient(t): return AnonFX.gradient(t, (0,255,0), (50,255,150))
     @staticmethod
     def gold(t): return AnonFX.gradient(t, (255,215,0), (255,140,0))
     @staticmethod
@@ -94,7 +94,7 @@ class AnonFX:
         print()
 
     @staticmethod
-    def glitch(text, iters=3):
+    def glitch_text(text, iters=3):
         g = ["█","▓","▒","░","▀","▄","▌","▐","▖","▗","▘","▙","▚","▛","▜","▝","▞","▟"]
         for _ in range(iters):
             gl = ""
