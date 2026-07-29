@@ -1,53 +1,35 @@
 #!/usr/bin/env python3
-# ═══════════════════════════════════════════════════════════════
-# ANON SCRAPER v2.0 — ADVANCED EDITION
+# ANON SCRAPER v2.0 — MONSTER EDITION
 # Created by: anonymous | anonymous.world
-# 10 Modes | 10 Features | Instant Launch | Auto-Everything
-# ═══════════════════════════════════════════════════════════════
+# 10 Engines | Auto-Dork | Instant Results
 
 import sys
 import os
 import time
-import json
 import signal
 import argparse
-import threading
 from pathlib import Path
-from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.fx import AnonFX, fx
 from core.db import AnonDB
 from core.scraper import AnonScraper
-from modes.instant import InstantMode
-from modes.manual import ManualMode
-from modes.auto import AutoMode
-from modes.deep import DeepMode
-from modes.pastebin import PastebinMode
-from modes.forum import ForumMode
-from modes.darkweb import DarkWebMode
-from modes.telegram import TelegramMode
-from modes.export import ExportMode
-from modes.stealth import StealthMode
-from modes.monitor import MonitorMode
 
 class AnonLauncher:
-    """Main launcher — just press ENTER, everything auto"""
+    VERSION = "2.0.0-MONSTER"
 
-    VERSION = "2.0.0-ADVANCED"
     MODES = {
-        "1": ("🚀 INSTANT", "30-sec auto-scan all sources", InstantMode),
-        "2": ("🔍 MANUAL", "Choose sites & options", ManualMode),
-        "3": ("🤖 AUTO", "Background 24/7 daemon", AutoMode),
-        "4": ("🕳️ DEEP", "Recursive multi-page crawl", DeepMode),
-        "5": ("📋 PASTEBIN", "Auto-detect & scrape pastes", PastebinMode),
-        "6": ("💬 FORUM", "XenForo/vBulletin scraper", ForumMode),
-        "7": ("🧅 DARKWEB", "Tor proxy .onion support", DarkWebMode),
-        "8": ("📱 TELEGRAM", "Auto-send to Telegram bot", TelegramMode),
-        "9": ("💾 EXPORT", "Auto-export every N mins", ExportMode),
-        "10": ("👻 STEALTH", "Anti-bot + fingerprint random", StealthMode),
-        "11": ("📊 MONITOR", "Live dashboard + alerts", MonitorMode),
+        "1": ("🚀 INSTANT", "Fast scan — Dorks + Pastebin + Rentry", "fast"),
+        "2": ("🕳️ DEEP", "Full deep scan — ALL engines", "deep"),
+        "3": ("🧪 TEST", "Generate test CCs — verify system", "test"),
+        "4": ("💾 EXPORT", "Export all data TXT/JSON", "export"),
+        "5": ("📊 STATS", "View database statistics", "stats"),
+        "6": ("🔍 DORK ONLY", "Google dork search only", "dork"),
+        "7": ("📋 PASTE ONLY", "Pastebin + Rentry only", "paste"),
+        "8": ("💻 GITHUB", "GitHub raw file search", "github"),
+        "9": ("📁 INDEX OF", "Open directory search", "indexof"),
+        "10": ("🤖 AUTO", "24/7 daemon — all engines", "auto"),
     }
 
     def __init__(self):
@@ -66,12 +48,12 @@ class AnonLauncher:
         fx.spinner(0.5, "Initializing")
         self.db = AnonDB()
         fx.typing_effect(fx.green_gradient("✅ Database ready"), 0.01)
-        fx.typing_effect(fx.green_gradient("✅ 10 modes loaded"), 0.01)
-        fx.typing_effect(fx.green_gradient("✅ Auto-config applied"), 0.01)
+        fx.typing_effect(fx.green_gradient("✅ 10 engines loaded"), 0.01)
+        fx.typing_effect(fx.green_gradient("✅ Auto-dork system ready"), 0.01)
         print()
 
     def _menu(self):
-        print(fx.box(" ANON CONTROL CENTER ", fx.CYAN, 75, "double"))
+        print(fx.box(" ANON MONSTER CONTROL ", fx.CYAN, 75, "double"))
         print()
         for k, (name, desc, _) in self.MODES.items():
             print(f"  {fx.GREEN}[{k}]{fx.RESET} {fx.BOLD}{name:<12}{fx.RESET} {fx.DIM}— {desc}{fx.RESET}")
@@ -86,14 +68,22 @@ class AnonLauncher:
             print(fx.RESET)
 
             if choice == "":
-                # DEFAULT — Instant mode on ENTER
-                print(fx.fire_gradient("⚡ ENTER pressed → Launching INSTANT MODE"))
-                InstantMode(self.db).run()
+                print(fx.fire("⚡ ENTER pressed → INSTANT MODE"))
+                scraper = AnonScraper(self.db, fx)
+                scraper.run_all("fast")
             elif choice in self.MODES:
-                _, _, ModeClass = self.MODES[choice]
-                ModeClass(self.db).run()
+                _, _, mode = self.MODES[choice]
+                if mode == "export":
+                    self._export()
+                elif mode == "stats":
+                    self._stats()
+                elif mode == "auto":
+                    self._auto()
+                else:
+                    scraper = AnonScraper(self.db, fx)
+                    scraper.run_all(mode)
             elif choice == "0":
-                fx.glitch_text("SYSTEM SHUTDOWN...", 2)
+                fx.glitch("SYSTEM SHUTDOWN...", 2)
                 print(f"{fx.RED}💀 ANON offline. Sab chhod, system tod. 🕳️{fx.RESET}")
                 break
             else:
@@ -102,41 +92,59 @@ class AnonLauncher:
             input(f"\n{fx.DIM}Press ENTER to continue...{fx.RESET}")
             os.system('clear')
 
+    def _export(self):
+        print(f"\n{fx.green_gradient('💾 EXPORT MODE')}\n")
+        print(f"  {fx.GREEN}[1]{fx.RESET} TXT")
+        print(f"  {fx.GREEN}[2]{fx.RESET} JSON")
+        c = input(f"\n{fx.YELLOW}Format: {fx.RESET}")
+        if c == "1":
+            fn = self.db.export_txt()
+        else:
+            fn = self.db.export_json()
+        print(f"{fx.GREEN}✅ Exported: {fn}{fx.RESET}")
+
+    def _stats(self):
+        total = self.db.get_total()
+        stats = self.db.get_stats()
+        print(f"\n{fx.box(' DATABASE STATS ', fx.MAGENTA, 60, 'double')}")
+        print(f"\n  {fx.CYAN}Total CCs: {fx.GREEN}{total}{fx.RESET}")
+        if stats:
+            print(f"\n  {fx.YELLOW}By Source:{fx.RESET}")
+            for s, c in stats.items():
+                print(f"    {fx.CYAN}{s:<20} {fx.GREEN}{c}{fx.RESET}")
+        print()
+
+    def _auto(self):
+        print(f"\n{fx.neon('🤖 AUTO DAEMON — 24/7')}\n")
+        print(f"{fx.YELLOW}Ctrl+C to stop{fx.RESET}\n")
+        while self.running:
+            scraper = AnonScraper(self.db, fx)
+            scraper.run_all("deep")
+            print(f"\n{fx.CYAN}Sleeping 300s...{fx.RESET}\n")
+            time.sleep(300)
+
 
 def main():
-    parser = argparse.ArgumentParser(description="ANON Scraper v2.0")
-    parser.add_argument("--instant", "-i", action="store_true", help="Instant mode (default)")
-    parser.add_argument("--auto", "-a", action="store_true", help="Auto daemon mode")
-    parser.add_argument("--deep", "-d", action="store_true", help="Deep scan mode")
-    parser.add_argument("--stealth", "-s", action="store_true", help="Stealth mode")
-    parser.add_argument("--monitor", "-m", action="store_true", help="Monitor dashboard")
-    parser.add_argument("--pastebin", "-p", action="store_true", help="Pastebin mode")
-    parser.add_argument("--forum", "-f", action="store_true", help="Forum mode")
-    parser.add_argument("--darkweb", "-dw", action="store_true", help="Dark web mode")
-    parser.add_argument("--telegram", "-t", action="store_true", help="Telegram notify mode")
-    parser.add_argument("--export", "-e", action="store_true", help="Export mode")
+    parser = argparse.ArgumentParser(description="ANON Scraper v2.0 Monster")
+    parser.add_argument("--instant", "-i", action="store_true", help="Fast mode")
+    parser.add_argument("--deep", "-d", action="store_true", help="Deep mode")
+    parser.add_argument("--test", "-t", action="store_true", help="Test mode")
+    parser.add_argument("--auto", "-a", action="store_true", help="Auto daemon")
+    parser.add_argument("--export", "-e", action="store_true", help="Export")
     args = parser.parse_args()
 
     launcher = AnonLauncher()
 
-    if args.auto:
-        AutoMode(launcher.db).run()
+    if args.instant:
+        AnonScraper(launcher.db, fx).run_all("fast")
     elif args.deep:
-        DeepMode(launcher.db).run()
-    elif args.stealth:
-        StealthMode(launcher.db).run()
-    elif args.monitor:
-        MonitorMode(launcher.db).run()
-    elif args.pastebin:
-        PastebinMode(launcher.db).run()
-    elif args.forum:
-        ForumMode(launcher.db).run()
-    elif args.darkweb:
-        DarkWebMode(launcher.db).run()
-    elif args.telegram:
-        TelegramMode(launcher.db).run()
+        AnonScraper(launcher.db, fx).run_all("deep")
+    elif args.test:
+        AnonScraper(launcher.db, fx).run_all("test")
+    elif args.auto:
+        launcher._auto()
     elif args.export:
-        ExportMode(launcher.db).run()
+        launcher._export()
     else:
         launcher.run()
 
