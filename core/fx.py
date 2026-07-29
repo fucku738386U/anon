@@ -14,6 +14,8 @@ class AnonFX:
     YELLOW = "\033[93m"
     BLUE = "\033[94m"
     MAGENTA = "\033[95m"
+    PURPLE = "\033[38;5;129m"
+    DARK_PURPLE = "\033[38;5;93m"
     CYAN = "\033[96m"
     WHITE = "\033[97m"
     ORANGE = "\033[38;5;208m"
