@@ -417,7 +417,7 @@ class AnonScraper:
         self.running = True
         self.stats["start"] = datetime.now()
 
-        print(f"\n{self.fx.fire('═══ ANON MONSTER SCAN — ALL ENGINES ═══')}\n")
+        print(f"\n{self.fx.fire_gradient('═══ ANON MONSTER SCAN — ALL ENGINES ═══')}\n")
 
         if mode == "test":
             self.engine_test()
@@ -451,18 +451,18 @@ class AnonScraper:
 
     def _final_stats(self):
         dur = (datetime.now() - self.stats["start"]).total_seconds()
-        print(f"\n{self.fx.blood('═'*70)}")
+        print(f"\n{self.fx.blood_gradient('═'*70)}")
         print(self.fx.box(" SCAN COMPLETE ", self.fx.GREEN, 70, "heavy"))
         print(f"{self.fx.CYAN}  URLs Scanned:  {self.fx.WHITE}{self.stats['urls_scanned']}")
         print(f"{self.fx.CYAN}  CCs Found:     {self.fx.GREEN}{self.stats['found']} 💳")
         print(f"{self.fx.CYAN}  Errors:        {self.fx.RED}{self.stats['errors']}")
         print(f"{self.fx.CYAN}  Duration:      {self.fx.YELLOW}{dur:.1f}s")
         print(f"{self.fx.CYAN}  DB Total:      {self.fx.MAGENTA}{self.db.get_total()}")
-        print(f"{self.fx.blood('═'*70)}\n")
+        print(f"{self.fx.blood_gradient('═'*70)}\n")
 
         stats = self.db.get_stats()
         if stats:
-            print(self.fx.ice("📊 BY SOURCE:"))
+            print(self.fx.ice_gradient("📊 BY SOURCE:"))
             for s, c in stats.items():
                 print(f"  {self.fx.CYAN}{s:<25} {self.fx.progress(c, max(stats.values()), 25)} {self.fx.WHITE}{c}")
 
