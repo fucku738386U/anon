@@ -125,12 +125,12 @@ class AnonFX:
     def banner():
         lines = [
             "",
-            AnonFX.blood("    ░█████╗░███╗░░██╗░█████╗░███╗░░██╗"),
-            AnonFX.fire("    ██╔══██╗████╗░██║██╔══██╗████╗░██║"),
-            AnonFX.neon("    ███████║██╔██╗██║██║░░██║██╔██╗██║"),
-            AnonFX.ice("    ██╔══██║██║╚████║██║░░██║██║╚████║"),
-            AnonFX.blood("    ██║░░██║██║░╚███║╚█████╔╝██║░╚███║"),
-            AnonFX.fire("    ╚═╝░░╚═╝╚═╝░░╚══╝░╚════╝░╚═╝░░╚══╝"),
+            AnonFX.blood_gradient("    ░█████╗░███╗░░██╗░█████╗░███╗░░██╗"),
+            AnonFX.fire_gradient("    ██╔══██╗████╗░██║██╔══██╗████╗░██║"),
+            AnonFX.neon_gradient("    ███████║██╔██╗██║██║░░██║██╔██╗██║"),
+            AnonFX.ice_gradient("    ██╔══██║██║╚████║██║░░██║██║╚████║"),
+            AnonFX.blood_gradient("    ██║░░██║██║░╚███║╚█████╔╝██║░╚███║"),
+            AnonFX.fire_gradient("    ╚═╝░░╚═╝╚═╝░░╚══╝░╚════╝░╚═╝░░╚══╝"),
             "",
             AnonFX.gradient("         🌀 ADVANCED SCRAPER v2.0 🕳️", (255,0,128), (0,255,128)),
             AnonFX.DIM + AnonFX.CYAN + "         Created by anonymous | anonymous.world" + AnonFX.RESET,
