@@ -1,4 +1,3 @@
-
 # ANON FX Engine — Full Animation & Color System
 import sys
 import time
@@ -14,8 +13,6 @@ class AnonFX:
     YELLOW = "\033[93m"
     BLUE = "\033[94m"
     MAGENTA = "\033[95m"
-    PURPLE = "\033[38;5;129m"
-    DARK_PURPLE = "\033[38;5;93m"
     CYAN = "\033[96m"
     WHITE = "\033[97m"
     ORANGE = "\033[38;5;208m"
@@ -26,6 +23,7 @@ class AnonFX:
     BG_RED = "\033[41m"
     BG_GREEN = "\033[42m"
     BG_CYAN = "\033[46m"
+    PURPLE = "\033[38;5;129m"
 
     @staticmethod
     def gradient(text, sc=(255,0,0), ec=(0,255,255)):
@@ -52,32 +50,32 @@ class AnonFX:
     @staticmethod
     def green_gradient(t): return AnonFX.gradient(t, (0,255,0), (50,255,150))
     @staticmethod
-    def gold(t): return AnonFX.gradient(t, (255,215,0), (255,140,0))
+    def gold_gradient(t): return AnonFX.gradient(t, (255,215,0), (255,140,0))
     @staticmethod
-    def purple(t): return AnonFX.gradient(t, (128,0,128), (255,0,255))
+    def purple_gradient(t): return AnonFX.gradient(t, (128,0,128), (255,0,255))
     @staticmethod
-    def ocean(t): return AnonFX.gradient(t, (0,105,148), (0,255,255))
+    def ocean_gradient(t): return AnonFX.gradient(t, (0,105,148), (0,255,255))
 
     @staticmethod
     def box(text, color=CYAN, w=75, style="double"):
         if style == "double":
-            return f"{color}╔{'═'*(w-2)}╗\n║{text.center(w-2)}║\n╚{'═'*(w-2)}╝{AnonFX.RESET}"
+            return f"{color}\u2554{'\u2550'*(w-2)}\u2557\n\u2551{text.center(w-2)}\u2551\n\u255a{'\u2550'*(w-2)}\u255d{AnonFX.RESET}"
         elif style == "heavy":
-            return f"{color}{'█'*w}\n█{text.center(w-2)}█\n{'█'*w}{AnonFX.RESET}"
+            return f"{color}{'\u2588'*w}\n\u2588{text.center(w-2)}\u2588\n{'\u2588'*w}{AnonFX.RESET}"
         else:
-            return f"{color}┌{'─'*(w-2)}┐\n│{text.center(w-2)}│\n└{'─'*(w-2)}┘{AnonFX.RESET}"
+            return f"{color}\u250c{'\u2500'*(w-2)}\u2510\n\u2502{text.center(w-2)}\u2502\n\u2514{'\u2500'*(w-2)}\u2518{AnonFX.RESET}"
 
     @staticmethod
     def progress(c, t, w=40, color=GREEN):
         if t == 0: t = 1
         p = c/t
         f = int(w*p)
-        b = "█"*f + "░"*(w-f)
+        b = "\u2588"*f + "\u2591"*(w-f)
         return f"{color}[{b}] {p*100:.1f}%{AnonFX.RESET}"
 
     @staticmethod
     def spinner(d=1, msg="Loading"):
-        frames = ["◐","◓","◑","◒","🌀","💀","🔥","🚀","⚡","💳"]
+        frames = ["\u25d0","\u25d3","\u25d1","\u25d2","\ud83c\udf00","\ud83d\udc80","\ud83d\udd25","\ud83d\ude80"]
         e = time.time() + d
         i = 0
         while time.time() < e:
@@ -97,7 +95,7 @@ class AnonFX:
 
     @staticmethod
     def glitch_text(text, iters=3):
-        g = ["█","▓","▒","░","▀","▄","▌","▐","▖","▗","▘","▙","▚","▛","▜","▝","▞","▟"]
+        g = ["\u2588","\u2593","\u2592","\u2591","\u2580","\u2584","\u258c","\u2590"]
         for _ in range(iters):
             gl = ""
             for c in text:
@@ -109,7 +107,7 @@ class AnonFX:
 
     @staticmethod
     def matrix(d=1.5, w=80):
-        chars = "0123456789ABCDEF@#$%&*01anon🌀💀🔥"
+        chars = "0123456789ABCDEF@#$%&*01anon"
         e = time.time() + d
         while time.time() < e:
             line = ""
@@ -127,14 +125,13 @@ class AnonFX:
     def banner():
         lines = [
             "",
-            AnonFX.blood_gradient("    ░█████╗░███╗░░██╗░█████╗░███╗░░██╗"),
-            AnonFX.fire_gradient("    ██╔══██╗████╗░██║██╔══██╗████╗░██║"),
-            AnonFX.neon_gradient("    ███████║██╔██╗██║██║░░██║██╔██╗██║"),
-            AnonFX.ice_gradient("    ██╔══██║██║╚████║██║░░██║██║╚████║"),
-            AnonFX.blood_gradient("    ██║░░██║██║░╚███║╚█████╔╝██║░╚███║"),
-            AnonFX.fire_gradient("    ╚═╝░░╚═╝╚═╝░░╚══╝░╚════╝░╚═╝░░╚══╝"),
+            AnonFX.blood_gradient("    \u2588\u2588\u2588\u2588\u2588\u2588\u2588 \u2588\u2588\u2588 \u2588\u2588\u2588\u2588\u2588\u2588\u2588 \u2588\u2588\u2588 \u2588\u2588\u2588\u2588\u2588\u2588\u2588"),
+            AnonFX.fire_gradient("    \u2588\u2588      \u2588\u2588\u2588 \u2588\u2588      \u2588\u2588\u2588 \u2588\u2588     "),
+            AnonFX.neon_gradient("    \u2588\u2588\u2588\u2588\u2588\u2588\u2588 \u2588\u2588\u2588 \u2588\u2588      \u2588\u2588\u2588 \u2588\u2588\u2588\u2588\u2588\u2588\u2588"),
+            AnonFX.ice_gradient("    \u2588\u2588      \u2588\u2588\u2588 \u2588\u2588      \u2588\u2588\u2588      \u2588\u2588"),
+            AnonFX.blood_gradient("    \u2588\u2588      \u2588\u2588\u2588 \u2588\u2588\u2588\u2588\u2588\u2588\u2588 \u2588\u2588\u2588 \u2588\u2588\u2588\u2588\u2588\u2588\u2588"),
             "",
-            AnonFX.gradient("         🌀 ADVANCED SCRAPER v2.0 🕳️", (255,0,128), (0,255,128)),
+            AnonFX.gradient("         \ud83c\udf00 ADVANCED SCRAPER v2.0 \ud83d\udd73\ufe0f", (255,0,128), (0,255,128)),
             AnonFX.DIM + AnonFX.CYAN + "         Created by anonymous | anonymous.world" + AnonFX.RESET,
             ""
         ]
@@ -145,22 +142,18 @@ class AnonFX:
     @staticmethod
     def status(site, status, color=GREEN):
         ts = time.strftime("%H:%M:%S")
-        icons = {"running":"▶️","success":"✅","error":"❌","warning":"⚠️","found":"💳","scanning":"🔍","done":"🏁","dorking":"🔎","scraping":"⚡","testing":"🧪"}
-        return f"{AnonFX.DIM}[{ts}]{AnonFX.RESET} {color}{icons.get(status.lower(),'⏳')} {site:<35} {status.upper()}{AnonFX.RESET}"
+        icons = {"running":"\u25b6\ufe0f","success":"\u2705","error":"\u274c","warning":"\u26a0\ufe0f","found":"\ud83d\udcb3","scanning":"\ud83d\udd0d","done":"\ud83c\udfc1"}
+        return f"{AnonFX.DIM}[{ts}]{AnonFX.RESET} {color}{icons.get(status.lower(),'\u23f3')} {site:<35} {status.upper()}{AnonFX.RESET}"
 
     @staticmethod
     def cccard(num, exp, cvv, name="", bank="", country=""):
         return f"""
-{AnonFX.BG_BLACK}{AnonFX.CYAN}╔══════════════════════════════════════════╗{AnonFX.RESET}
-{AnonFX.BG_BLACK}{AnonFX.CYAN}║  {AnonFX.YELLOW}💳 {AnonFX.WHITE}{num:<36}{AnonFX.CYAN}║{AnonFX.RESET}
-{AnonFX.BG_BLACK}{AnonFX.CYAN}║  {AnonFX.DIM}EXP: {AnonFX.WHITE}{exp:<10}  CVV: {AnonFX.WHITE}{cvv:<8}{AnonFX.CYAN}         ║{AnonFX.RESET}
-{AnonFX.BG_BLACK}{AnonFX.CYAN}║  {AnonFX.DIM}NAME: {AnonFX.WHITE}{name:<33}{AnonFX.CYAN}║{AnonFX.RESET}
-{AnonFX.BG_BLACK}{AnonFX.CYAN}║  {AnonFX.DIM}BANK: {AnonFX.ORANGE}{bank:<20} {AnonFX.DIM}COUNTRY: {AnonFX.WHITE}{country:<6}{AnonFX.CYAN}║{AnonFX.RESET}
-{AnonFX.BG_BLACK}{AnonFX.CYAN}╚══════════════════════════════════════════╝{AnonFX.RESET}
+{AnonFX.BG_BLACK}{AnonFX.CYAN}\u2554{'\u2550'*42}\u2557{AnonFX.RESET}
+{AnonFX.BG_BLACK}{AnonFX.CYAN}\u2551  {AnonFX.YELLOW}\ud83d\udcb3 {AnonFX.WHITE}{num:<36}{AnonFX.CYAN}\u2551{AnonFX.RESET}
+{AnonFX.BG_BLACK}{AnonFX.CYAN}\u2551  {AnonFX.DIM}EXP: {AnonFX.WHITE}{exp:<10}  CVV: {AnonFX.WHITE}{cvv:<8}{AnonFX.CYAN}         \u2551{AnonFX.RESET}
+{AnonFX.BG_BLACK}{AnonFX.CYAN}\u2551  {AnonFX.DIM}NAME: {AnonFX.WHITE}{name:<33}{AnonFX.CYAN}\u2551{AnonFX.RESET}
+{AnonFX.BG_BLACK}{AnonFX.CYAN}\u2551  {AnonFX.DIM}BANK: {AnonFX.ORANGE}{bank:<20} {AnonFX.DIM}COUNTRY: {AnonFX.WHITE}{country:<6}{AnonFX.CYAN}\u2551{AnonFX.RESET}
+{AnonFX.BG_BLACK}{AnonFX.CYAN}\u255a{'\u2550'*42}\u255d{AnonFX.RESET}
 """
-
-    @staticmethod
-    def separator(color=CYAN):
-        return f"{color}{'═'*75}{AnonFX.RESET}"
 
 fx = AnonFX()
